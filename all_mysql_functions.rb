@@ -53,9 +53,10 @@ end
 </plist>
 PLIST
    
+bundlenames = []
 
 files.each do |title|
-	value = File.open(title).read()
+  value = File.open(title).read()
   value.split("∞").each do |fnc|
     l = fnc.lines
     k = l.first
@@ -71,17 +72,19 @@ files.each do |title|
     succ = `mkdir "#{dirname}"`
     
     plist_copy = String.new(str=plist) 
-    plist_copy.gsub!(/FUNCTION/,md[0])
-    plist_copy.gsub!(/NAME/,name)
-    plist_copy.gsub!(/TOOLTIP/,tooltip)
     plist_copy.gsub!(/UUID/,uuid)
+    plist_copy.gsub!(/FUNCTION/,md[0])
+    plist_copy.gsub!(/TOOLTIP/,tooltip)
+    plist_copy.gsub!(/NAME/,name)
     plist_copy.gsub!(/CATEGORY/,title)
     File.open(dirname+"/command.plist", "w+") do |f|
      f.write plist_copy
+     bundlenames << dirname
     end
   end 
 end
 
 
 # Comment this out if you want to see all 200 bundles
-`mv *.spBundle "/Users/$USER/Library/Application Support/Sequel Pro/Bundles"`
+bundlenames.each {|x| `rm -rf "/Users/$USER/Library/Application Support/Sequel Pro/Bundles/#{x}";`}
+`mv -f *.spBundle "/Users/$USER/Library/Application Support/Sequel Pro/Bundles"`
