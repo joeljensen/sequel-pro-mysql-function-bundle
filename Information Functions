@@ -1,0 +1,311 @@
+BENCHMARK(count,expr)
+
+The BENCHMARK() function executes the expression expr repeatedly count times. It may be used to time how quickly MySQL processes the expression. The result value is always 0. The intended use is from within the mysql client, which reports query execution times:
+
+mysql> SELECT BENCHMARK(1000000,ENCODE('hello','goodbye'));
++----------------------------------------------+
+| BENCHMARK(1000000,ENCODE('hello','goodbye')) |
++----------------------------------------------+
+|                                            0 |
++----------------------------------------------+
+1 row in set (4.74 sec)
+
+The time reported is elapsed time on the client end, not CPU time on the server end. It is advisable to execute BENCHMARK() several times, and to interpret the result with regard to how heavily loaded the server machine is.
+
+BENCHMARK() is intended for measuring the runtime performance of scalar expressions, which has some significant implications for the way that you use it and interpret the results:
+
+    Only scalar expressions can be used. Although the expression can be a subquery, it must return a single column and at most a single row. For example, BENCHMARK(10, (SELECT * FROM t)) will fail if the table t has more than one column or more than one row.
+
+    Executing a SELECT expr statement N times differs from executing SELECT BENCHMARK(N, expr) in terms of the amount of overhead involved. The two have very different execution profiles and you should not expect them to take the same amount of time. The former involves the parser, optimizer, table locking, and runtime evaluation N times each. The latter involves only runtime evaluation N times, and all the other components just once. Memory structures already allocated are reused, and runtime optimizations such as local caching of results already evaluated for aggregate functions can alter the results. Use of BENCHMARK() thus measures performance of the runtime component by giving more weight to that component and removing the “noise” introduced by the network, parser, optimizer, and so forth.
+
+∞CHARSET(str)
+
+Returns the character set of the string argument.
+
+mysql> SELECT CHARSET('abc');
+        -> 'latin1'
+mysql> SELECT CHARSET(CONVERT('abc' USING utf8));
+        -> 'utf8'
+mysql> SELECT CHARSET(USER());
+        -> 'utf8'
+
+∞COERCIBILITY(str)
+
+Returns the collation coercibility value of the string argument.
+
+mysql> SELECT COERCIBILITY('abc' COLLATE latin1_swedish_ci);
+        -> 0
+mysql> SELECT COERCIBILITY(USER());
+        -> 3
+mysql> SELECT COERCIBILITY('abc');
+        -> 4
+
+The return values have the meanings shown in the following table. Lower values have higher precedence.
+Coercibility 	Meaning 	Example
+0 	Explicit collation 	Value with COLLATE clause
+1 	No collation 	Concatenation of strings with different collations
+2 	Implicit collation 	Column value
+3 	System constant 	USER() return value
+4 	Coercible 	Literal string
+5 	Ignorable 	NULL or an expression derived from NULL
+
+Before MySQL 5.0.3, the return values are shown as follows, and functions such as USER() have a coercibility of 2:
+Coercibility 	Meaning 	Example
+0 	Explicit collation 	Value with COLLATE clause
+1 	No collation 	Concatenation of strings with different collations
+2 	Implicit collation 	Column value, stored routine parameter or local variable
+3 	Coercible 	Literal string
+
+∞COLLATION(str)
+
+Returns the collation of the string argument.
+
+mysql> SELECT COLLATION('abc');
+        -> 'latin1_swedish_ci'
+mysql> SELECT COLLATION(_utf8'abc');
+        -> 'utf8_general_ci'
+
+∞CONNECTION_ID()
+
+Returns the connection ID (thread ID) for the connection. Every connection has an ID that is unique among the set of currently connected clients.
+
+mysql> SELECT CONNECTION_ID();
+        -> 23786
+
+∞CURRENT_USER()
+CURRENT_USER, CURRENT_USER()
+
+Returns the user name and host name combination for the MySQL account that the server used to authenticate the current client. This account determines your access privileges. The return value is a string in the utf8 character set.
+
+The value of CURRENT_USER() can differ from the value of USER().
+
+mysql> SELECT USER();
+        -> 'davida@localhost'
+mysql> SELECT * FROM mysql.user;
+ERROR 1044: Access denied for user ''@'localhost' to
+database 'mysql'
+mysql> SELECT CURRENT_USER();
+        -> '@localhost'
+
+The example illustrates that although the client specified a user name of davida (as indicated by the value of the USER() function), the server authenticated the client using an anonymous user account (as seen by the empty user name part of the CURRENT_USER() value). One way this might occur is that there is no account listed in the grant tables for davida.
+
+Within a stored program or view, CURRENT_USER() returns the account for the user who defined the object (as given by its DEFINER value). This applies to stored programs as of MySQL 5.0.10 and to views as of MySQL 5.0.24. (For older versions, CURRENT_USER() returns the account for the object's invoker.) For stored procedures and functions and views defined with the SQL SECURITY INVOKER characteristic, CURRENT_USER() returns the object's invoker.
+
+∞DATABASE()
+
+Returns the default (current) database name as a string in the utf8 character set. If there is no default database, DATABASE() returns NULL. Within a stored routine, the default database is the database that the routine is associated with, which is not necessarily the same as the database that is the default in the calling context.
+
+mysql> SELECT DATABASE();
+        -> 'test'
+
+∞FOUND_ROWS()
+
+A SELECT statement may include a LIMIT clause to restrict the number of rows the server returns to the client. In some cases, it is desirable to know how many rows the statement would have returned without the LIMIT, but without running the statement again. To obtain this row count, include a SQL_CALC_FOUND_ROWS option in the SELECT statement, and then invoke FOUND_ROWS() afterward:
+
+mysql> SELECT SQL_CALC_FOUND_ROWS * FROM tbl_name
+    -> WHERE id > 100 LIMIT 10;
+mysql> SELECT FOUND_ROWS();
+
+The second SELECT returns a number indicating how many rows the first SELECT would have returned had it been written without the LIMIT clause.
+
+In the absence of the SQL_CALC_FOUND_ROWS option in the most recent successful SELECT statement, FOUND_ROWS() returns the number of rows in the result set returned by that statement. If the statement includes a LIMIT clause, FOUND_ROWS() returns the number of rows up to the limit. For example, FOUND_ROWS() returns 10 or 60, respectively, if the statement includes LIMIT 10 or LIMIT 50, 10.
+
+The row count available through FOUND_ROWS() is transient and not intended to be available past the statement following the SELECT SQL_CALC_FOUND_ROWS statement. If you need to refer to the value later, save it:
+
+mysql> SELECT SQL_CALC_FOUND_ROWS * FROM ... ;
+mysql> SET @rows = FOUND_ROWS();
+
+If you are using SELECT SQL_CALC_FOUND_ROWS, MySQL must calculate how many rows are in the full result set. However, this is faster than running the query again without LIMIT, because the result set need not be sent to the client.
+
+SQL_CALC_FOUND_ROWS and FOUND_ROWS() can be useful in situations when you want to restrict the number of rows that a query returns, but also determine the number of rows in the full result set without running the query again. An example is a Web script that presents a paged display containing links to the pages that show other sections of a search result. Using FOUND_ROWS() enables you to determine how many other pages are needed for the rest of the result.
+
+The use of SQL_CALC_FOUND_ROWS and FOUND_ROWS() is more complex for UNION statements than for simple SELECT statements, because LIMIT may occur at multiple places in a UNION. It may be applied to individual SELECT statements in the UNION, or global to the UNION result as a whole.
+
+The intent of SQL_CALC_FOUND_ROWS for UNION is that it should return the row count that would be returned without a global LIMIT. The conditions for use of SQL_CALC_FOUND_ROWS with UNION are:
+
+    The SQL_CALC_FOUND_ROWS keyword must appear in the first SELECT of the UNION.
+
+    The value of FOUND_ROWS() is exact only if UNION ALL is used. If UNION without ALL is used, duplicate removal occurs and the value of FOUND_ROWS() is only approximate.
+
+    If no LIMIT is present in the UNION, SQL_CALC_FOUND_ROWS is ignored and returns the number of rows in the temporary table that is created to process the UNION.
+
+Beyond the cases described here, the behavior of FOUND_ROWS() is undefined (for example, its value following a SELECT statement that fails with an error).
+Important
+
+FOUND_ROWS() is not replicated reliably, and should not be used with databases that are to be replicated.
+
+∞LAST_INSERT_ID() 
+LAST_INSERT_ID(), LAST_INSERT_ID(expr)
+
+LAST_INSERT_ID() (with no argument) returns the first automatically generated value that was set for an AUTO_INCREMENT column by the most recently executed INSERT statement to affect such a column. For example, after inserting a row that generates an AUTO_INCREMENT value, you can get the value like this:
+
+mysql> SELECT LAST_INSERT_ID();
+        -> 195
+
+if a table contains an AUTO_INCREMENT column and INSERT ... ON DUPLICATE KEY UPDATE updates (rather than inserts) a row, the value of LAST_INSERT_ID() is not meaningful. For a workaround, see Section 12.2.5.3, “INSERT ... ON DUPLICATE KEY UPDATE Syntax”.
+
+The currently executing statement does not affect the value of LAST_INSERT_ID(). Suppose that you generate an AUTO_INCREMENT value with one statement, and then refer to LAST_INSERT_ID() in a multiple-row INSERT statement that inserts rows into a table with its own AUTO_INCREMENT column. The value of LAST_INSERT_ID() will remain stable in the second statement; its value for the second and later rows is not affected by the earlier row insertions. (However, if you mix references to LAST_INSERT_ID() and LAST_INSERT_ID(expr), the effect is undefined.)
+
+If the previous statement returned an error, the value of LAST_INSERT_ID() is undefined. For transactional tables, if the statement is rolled back due to an error, the value of LAST_INSERT_ID() is left undefined. For manual ROLLBACK, the value of LAST_INSERT_ID() is not restored to that before the transaction; it remains as it was at the point of the ROLLBACK.
+
+Within the body of a stored routine (procedure or function) or a trigger, the value of LAST_INSERT_ID() changes the same way as for statements executed outside the body of these kinds of objects. The effect of a stored routine or trigger upon the value of LAST_INSERT_ID() that is seen by following statements depends on the kind of routine:
+
+    If a stored procedure executes statements that change the value of LAST_INSERT_ID(), the changed value is seen by statements that follow the procedure call.
+
+    For stored functions and triggers that change the value, the value is restored when the function or trigger ends, so following statements do not see a changed value. (Before MySQL 5.0.12, the value is not restored and following statements do see a changed value.)
+
+The ID that was generated is maintained in the server on a per-connection basis. This means that the value returned by the function to a given client is the first AUTO_INCREMENT value generated for most recent statement affecting an AUTO_INCREMENT column by that client. This value cannot be affected by other clients, even if they generate AUTO_INCREMENT values of their own. This behavior ensures that each client can retrieve its own ID without concern for the activity of other clients, and without the need for locks or transactions.
+
+The value of LAST_INSERT_ID() is not changed if you set the AUTO_INCREMENT column of a row to a non-“magic” value (that is, a value that is not NULL and not 0).
+Important
+
+If you insert multiple rows using a single INSERT statement, LAST_INSERT_ID() returns the value generated for the first inserted row only. The reason for this is to make it possible to reproduce easily the same INSERT statement against some other server.
+
+For example:
+
+mysql> USE test;
+Database changed
+mysql> CREATE TABLE t (
+    ->   id INT AUTO_INCREMENT NOT NULL PRIMARY KEY,
+    ->   name VARCHAR(10) NOT NULL
+    -> );
+Query OK, 0 rows affected (0.09 sec)
+
+mysql> INSERT INTO t VALUES (NULL, 'Bob');
+Query OK, 1 row affected (0.01 sec)
+
+mysql> SELECT * FROM t;
++----+------+
+| id | name |
++----+------+
+|  1 | Bob  |
++----+------+
+1 row in set (0.01 sec)
+
+mysql> SELECT LAST_INSERT_ID();
++------------------+
+| LAST_INSERT_ID() |
++------------------+
+|                1 |
++------------------+
+1 row in set (0.00 sec)
+
+mysql> INSERT INTO t VALUES
+    -> (NULL, 'Mary'), (NULL, 'Jane'), (NULL, 'Lisa');
+Query OK, 3 rows affected (0.00 sec)
+Records: 3  Duplicates: 0  Warnings: 0
+
+mysql> SELECT * FROM t;
++----+------+
+| id | name |
++----+------+
+|  1 | Bob  |
+|  2 | Mary |
+|  3 | Jane |
+|  4 | Lisa |
++----+------+
+4 rows in set (0.01 sec)
+
+mysql> SELECT LAST_INSERT_ID();
++------------------+
+| LAST_INSERT_ID() |
++------------------+
+|                2 |
++------------------+
+1 row in set (0.00 sec)
+
+Although the second INSERT statement inserted three new rows into t, the ID generated for the first of these rows was 2, and it is this value that is returned by LAST_INSERT_ID() for the following SELECT statement.
+
+If you use INSERT IGNORE and the row is ignored, the AUTO_INCREMENT counter is not incremented and LAST_INSERT_ID() returns 0, which reflects that no row was inserted.
+
+If expr is given as an argument to LAST_INSERT_ID(), the value of the argument is returned by the function and is remembered as the next value to be returned by LAST_INSERT_ID(). This can be used to simulate sequences:
+
+    Create a table to hold the sequence counter and initialize it:
+
+    mysql> CREATE TABLE sequence (id INT NOT NULL);
+    mysql> INSERT INTO sequence VALUES (0);
+
+    Use the table to generate sequence numbers like this:
+
+    mysql> UPDATE sequence SET id=LAST_INSERT_ID(id+1);
+    mysql> SELECT LAST_INSERT_ID();
+
+    The UPDATE statement increments the sequence counter and causes the next call to LAST_INSERT_ID() to return the updated value. The SELECT statement retrieves that value. The mysql_insert_id() C API function can also be used to get the value. See Section 19.8.3.37, “mysql_insert_id()”.
+
+You can generate sequences without calling LAST_INSERT_ID(), but the utility of using the function this way is that the ID value is maintained in the server as the last automatically generated value. It is multi-user safe because multiple clients can issue the UPDATE statement and get their own sequence value with the SELECT statement (or mysql_insert_id()), without affecting or being affected by other clients that generate their own sequence values.
+
+Note that mysql_insert_id() is only updated after INSERT and UPDATE statements, so you cannot use the C API function to retrieve the value for LAST_INSERT_ID(expr) after executing other SQL statements like SELECT or SET.
+
+∞ROW_COUNT()
+
+ROW_COUNT() returns the number of rows changed, deleted, or inserted by the last statement if it was an UPDATE, DELETE, or INSERT. For other statements, the value may not be meaningful.
+
+For UPDATE statements, the affected-rows value by default is the number of rows actually changed. If you specify the CLIENT_FOUND_ROWS flag to mysql_real_connect() when connecting to mysqld, the affected-rows value is the number of rows “found”; that is, matched by the WHERE clause.
+
+For REPLACE statements, the affected-rows value is 2 if the new row replaced an old row, because in this case, one row was inserted after the duplicate was deleted.
+
+For INSERT ... ON DUPLICATE KEY UPDATE statements, the affected-rows value is 1 if the row is inserted as a new row and 2 if an existing row is updated.
+
+The ROW_COUNT() value is similar to the value from the mysql_affected_rows() C API function and the row count that the mysql client displays following statement execution.
+
+mysql> INSERT INTO t VALUES(1),(2),(3);
+Query OK, 3 rows affected (0.00 sec)
+Records: 3  Duplicates: 0  Warnings: 0
+
+mysql> SELECT ROW_COUNT();
++-------------+
+| ROW_COUNT() |
++-------------+
+|           3 |
++-------------+
+1 row in set (0.00 sec)
+
+mysql> DELETE FROM t WHERE i IN(1,2);
+Query OK, 2 rows affected (0.00 sec)
+
+mysql> SELECT ROW_COUNT();
++-------------+
+| ROW_COUNT() |
++-------------+
+|           2 |
++-------------+
+1 row in set (0.00 sec)
+
+ROW_COUNT() was added in MySQL 5.0.1.
+Important
+
+ROW_COUNT() is not replicated reliably.
+
+∞SCHEMA()
+
+This function is a synonym for DATABASE(). It was added in MySQL 5.0.2.
+
+∞SESSION_USER()
+
+SESSION_USER() is a synonym for USER().
+
+SYSTEM_USER()
+
+SYSTEM_USER() is a synonym for USER().
+
+∞USER()
+
+Returns the current MySQL user name and host name as a string in the utf8 character set.
+
+mysql> SELECT USER();
+        -> 'davida@localhost'
+
+The value indicates the user name you specified when connecting to the server, and the client host from which you connected. The value can be different from that of CURRENT_USER().
+
+You can extract only the user name part like this:
+
+mysql> SELECT SUBSTRING_INDEX(USER(),'@',1);
+        -> 'davida'
+
+∞VERSION()
+
+Returns a string that indicates the MySQL server version. The string uses the utf8 character set. The value might have a suffix in addition to the version number. See the description of the version system variable in Section 5.1.3, “Server System Variables”.
+
+mysql> SELECT VERSION();
+        -> '5.0.95-standard'
+

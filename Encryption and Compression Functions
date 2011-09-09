@@ -1,0 +1,168 @@
+AES_DECRYPT(crypt_str,key_str)
+
+This function decrypts data using the official AES (Advanced Encryption Standard) algorithm. For more information, see the description of AES_ENCRYPT().
+
+∞AES_ENCRYPT(str,key_str)
+
+AES_ENCRYPT() and AES_DECRYPT() enable encryption and decryption of data using the official AES (Advanced Encryption Standard) algorithm, previously known as “Rijndael.” Encoding with a 128-bit key length is used, but you can extend it up to 256 bits by modifying the source. We chose 128 bits because it is much faster and it is secure enough for most purposes.
+
+AES_ENCRYPT() encrypts a string and returns a binary string. AES_DECRYPT() decrypts the encrypted string and returns the original string. The input arguments may be any length. If either argument is NULL, the result of this function is also NULL.
+
+Because AES is a block-level algorithm, padding is used to encode uneven length strings and so the result string length may be calculated using this formula:
+
+16 * (trunc(string_length / 16) + 1)
+
+If AES_DECRYPT() detects invalid data or incorrect padding, it returns NULL. However, it is possible for AES_DECRYPT() to return a non-NULL value (possibly garbage) if the input data or the key is invalid.
+
+You can use the AES functions to store data in an encrypted form by modifying your queries:
+
+INSERT INTO t VALUES (1,AES_ENCRYPT('text','password'));
+
+AES_ENCRYPT() and AES_DECRYPT() can be considered the most cryptographically secure encryption functions currently available in MySQL.
+
+∞COMPRESS(string_to_compress)
+
+Compresses a string and returns the result as a binary string. This function requires MySQL to have been compiled with a compression library such as zlib. Otherwise, the return value is always NULL. The compressed string can be uncompressed with UNCOMPRESS().
+
+mysql> SELECT LENGTH(COMPRESS(REPEAT('a',1000)));
+        -> 21
+mysql> SELECT LENGTH(COMPRESS(''));
+        -> 0
+mysql> SELECT LENGTH(COMPRESS('a'));
+        -> 13
+mysql> SELECT LENGTH(COMPRESS(REPEAT('a',16)));
+        -> 15
+
+The compressed string contents are stored the following way:
+
+    Empty strings are stored as empty strings.
+
+    Nonempty strings are stored as a four-byte length of the uncompressed string (low byte first), followed by the compressed string. If the string ends with space, an extra “.” character is added to avoid problems with endspace trimming should the result be stored in a CHAR or VARCHAR column. (However, use of nonbinary string data types such as CHAR or VARCHAR to store compressed strings is not recommended anyway because character set conversion may occur. Use a VARBINARY or BLOB binary string column instead.)
+
+∞DECODE(crypt_str,pass_str)
+
+Decrypts the encrypted string crypt_str using pass_str as the password. crypt_str should be a string returned from ENCODE().
+
+∞DES_DECRYPT(crypt_str[,key_str])
+
+Decrypts a string encrypted with DES_ENCRYPT(). If an error occurs, this function returns NULL.
+
+This function works only if MySQL has been configured with SSL support. See Section 5.5.6, “Using SSL for Secure Connections”.
+
+If no key_str argument is given, DES_DECRYPT() examines the first byte of the encrypted string to determine the DES key number that was used to encrypt the original string, and then reads the key from the DES key file to decrypt the message. For this to work, the user must have the SUPER privilege. The key file can be specified with the --des-key-file server option.
+
+If you pass this function a key_str argument, that string is used as the key for decrypting the message.
+
+If the crypt_str argument does not appear to be an encrypted string, MySQL returns the given crypt_str.
+
+∞DES_ENCRYPT(str[,{key_num|key_str}])
+
+Encrypts the string with the given key using the Triple-DES algorithm.
+
+This function works only if MySQL has been configured with SSL support. See Section 5.5.6, “Using SSL for Secure Connections”.
+
+The encryption key to use is chosen based on the second argument to DES_ENCRYPT(), if one was given. With no argument, the first key from the DES key file is used. With a key_num argument, the given key number (0 to 9) from the DES key file is used. With a key_str argument, the given key string is used to encrypt str.
+
+The key file can be specified with the --des-key-file server option.
+
+The return string is a binary string where the first character is CHAR(128 | key_num). If an error occurs, DES_ENCRYPT() returns NULL.
+
+The 128 is added to make it easier to recognize an encrypted key. If you use a string key, key_num is 127.
+
+The string length for the result is given by this formula:
+
+new_len = orig_len + (8 - (orig_len % 8)) + 1
+
+Each line in the DES key file has the following format:
+
+key_num des_key_str
+
+Each key_num value must be a number in the range from 0 to 9. Lines in the file may be in any order. des_key_str is the string that is used to encrypt the message. There should be at least one space between the number and the key. The first key is the default key that is used if you do not specify any key argument to DES_ENCRYPT().
+
+You can tell MySQL to read new key values from the key file with the FLUSH DES_KEY_FILE statement. This requires the RELOAD privilege.
+
+One benefit of having a set of default keys is that it gives applications a way to check for the existence of encrypted column values, without giving the end user the right to decrypt those values.
+
+mysql> SELECT customer_address FROM customer_table 
+     > WHERE crypted_credit_card = DES_ENCRYPT('credit_card_number');
+
+∞ENCODE(str,pass_str)
+
+Encrypt str using pass_str as the password. To decrypt the result, use DECODE().
+
+The result is a binary string of the same length as str.
+
+The strength of the encryption is based on how good the random generator is. It should suffice for short strings.
+
+∞ENCRYPT(str[,salt])
+
+Encrypts str using the Unix crypt() system call and returns a binary string. The salt argument must be a string with at least two characters or the result will be NULL. If no salt argument is given, a random value is used.
+
+mysql> SELECT ENCRYPT('hello');
+        -> 'VxuFAJXVARROc'
+
+ENCRYPT() ignores all but the first eight characters of str, at least on some systems. This behavior is determined by the implementation of the underlying crypt() system call.
+
+The use of ENCRYPT() with the ucs2 multi-byte character set is not recommended because the system call expects a string terminated by a zero byte.
+
+If crypt() is not available on your system (as is the case with Windows), ENCRYPT() always returns NULL.
+
+∞MD5(str)
+
+Calculates an MD5 128-bit checksum for the string. The value is returned as a binary string of 32 hex digits, or NULL if the argument was NULL. The return value can, for example, be used as a hash key. See the notes at the beginning of this section about storing hash values efficiently.
+
+mysql> SELECT MD5('testing');
+        -> 'ae2b1fca515949e5d54fb22b8ed95575'
+
+This is the “RSA Data Security, Inc. MD5 Message-Digest Algorithm.”
+
+See the note regarding the MD5 algorithm at the beginning this section.
+
+∞OLD_PASSWORD(str)
+
+OLD_PASSWORD() was added when the implementation of PASSWORD() was changed in MySQL 4.1 to improve security. OLD_PASSWORD() returns the value of the pre-4.1 implementation of PASSWORD() as a binary string, and is intended to permit you to reset passwords for any pre-4.1 clients that need to connect to your version 5.0 MySQL server without locking them out. See Section 5.3.2.3, “Password Hashing in MySQL”.
+
+∞PASSWORD(str)
+
+Calculates and returns a password string from the plaintext password str and returns a binary string, or NULL if the argument was NULL. This is the function that is used for encrypting MySQL passwords for storage in the Password column of the user grant table.
+
+mysql> SELECT PASSWORD('badpwd');
+        -> '*AAB3E285149C0135D51A520E1940DD3263DC008C'
+
+PASSWORD() encryption is one-way (not reversible).
+
+PASSWORD() does not perform password encryption in the same way that Unix passwords are encrypted. See ENCRYPT().
+Note
+
+The PASSWORD() function is used by the authentication system in MySQL Server; you should not use it in your own applications. For that purpose, consider MD5() or SHA1() instead. Also see RFC 2195, section 2 (Challenge-Response Authentication Mechanism (CRAM)), for more information about handling passwords and authentication securely in your applications.
+Important
+
+Statements that invoke PASSWORD() may be recorded in server logs or in a history file such as ~/.mysql_history, which means that plaintext passwords may be read by anyone having read access to that information. See Section 5.3.2, “Password Security in MySQL”.
+
+∞SHA1(str)
+ 
+SHA1(str), SHA(str) 
+
+Calculates an SHA-1 160-bit checksum for the string, as described in RFC 3174 (Secure Hash Algorithm). The value is returned as a binary string of 40 hex digits, or NULL if the argument was NULL. One of the possible uses for this function is as a hash key. See the notes at the beginning of this section about storing hash values efficiently. You can also use SHA1() as a cryptographic function for storing passwords. SHA() is synonymous with SHA1().
+
+mysql> SELECT SHA1('abc');
+        -> 'a9993e364706816aba3e25717850c26c9cd0d89d'
+
+SHA1() can be considered a cryptographically more secure equivalent of MD5(). However, see the note regarding the MD5 and SHA-1 algorithms at the beginning this section.
+
+∞UNCOMPRESS(string_to_uncompress)
+
+Uncompresses a string compressed by the COMPRESS() function. If the argument is not a compressed value, the result is NULL. This function requires MySQL to have been compiled with a compression library such as zlib. Otherwise, the return value is always NULL.
+
+mysql> SELECT UNCOMPRESS(COMPRESS('any string'));
+        -> 'any string'
+mysql> SELECT UNCOMPRESS('any string');
+        -> NULL
+ 
+∞UNCOMPRESSED_LENGTH(compressed_string)
+
+Returns the length that the compressed string had before being compressed.
+
+mysql> SELECT UNCOMPRESSED_LENGTH(COMPRESS(REPEAT('a',30)));
+        -> 30
+

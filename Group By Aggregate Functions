@@ -1,0 +1,160 @@
+AVG([DISTINCT] expr)
+
+Returns the average value of expr. The DISTINCT option can be used as of MySQL 5.0.3 to return the average of the distinct values of expr.
+
+AVG() returns NULL if there were no matching rows.
+
+mysql> SELECT student_name, AVG(test_score)
+    ->        FROM student
+    ->        GROUP BY student_name;
+
+∞BIT_AND(expr)
+
+Returns the bitwise AND of all bits in expr. The calculation is performed with 64-bit (BIGINT) precision.
+
+This function returns 18446744073709551615 if there were no matching rows. (This is the value of an unsigned BIGINT value with all bits set to 1.)
+
+∞BIT_OR(expr)
+
+Returns the bitwise OR of all bits in expr. The calculation is performed with 64-bit (BIGINT) precision.
+
+This function returns 0 if there were no matching rows.
+
+∞BIT_XOR(expr)
+
+Returns the bitwise XOR of all bits in expr. The calculation is performed with 64-bit (BIGINT) precision.
+
+This function returns 0 if there were no matching rows.
+
+∞COUNT(expr)
+
+Returns a count of the number of non-NULL values of expr in the rows retrieved by a SELECT statement. The result is a BIGINT value.
+
+COUNT() returns 0 if there were no matching rows.
+
+mysql> SELECT student.student_name,COUNT(*)
+    ->        FROM student,course
+    ->        WHERE student.student_id=course.student_id
+    ->        GROUP BY student_name;
+
+COUNT(*) is somewhat different in that it returns a count of the number of rows retrieved, whether or not they contain NULL values.
+
+COUNT(*) is optimized to return very quickly if the SELECT retrieves from one table, no other columns are retrieved, and there is no WHERE clause. For example:
+
+mysql> SELECT COUNT(*) FROM student;
+
+This optimization applies only to MyISAM tables only, because an exact row count is stored for this storage engine and can be accessed very quickly. For transactional storage engines such as InnoDB and BDB, storing an exact row count is more problematic because multiple transactions may be occurring, each of which may affect the count.
+
+COUNT(DISTINCT expr,[expr...])
+
+Returns a count of the number of rows with different non-NULL expr values.
+
+COUNT(DISTINCT) returns 0 if there were no matching rows.
+
+mysql> SELECT COUNT(DISTINCT results) FROM student;
+
+In MySQL, you can obtain the number of distinct expression combinations that do not contain NULL by giving a list of expressions. In standard SQL, you would have to do a concatenation of all expressions inside COUNT(DISTINCT ...).
+
+∞GROUP_CONCAT(expr)
+
+This function returns a string result with the concatenated non-NULL values from a group. It returns NULL if there are no non-NULL values. The full syntax is as follows:
+
+GROUP_CONCAT([DISTINCT] expr [,expr ...]
+             [ORDER BY {unsigned_integer | col_name | expr}
+                 [ASC | DESC] [,col_name ...]]
+             [SEPARATOR str_val])
+
+mysql> SELECT student_name,
+    ->     GROUP_CONCAT(test_score)
+    ->     FROM student
+    ->     GROUP BY student_name;
+
+Or:
+
+mysql> SELECT student_name,
+    ->     GROUP_CONCAT(DISTINCT test_score
+    ->               ORDER BY test_score DESC SEPARATOR ' ')
+    ->     FROM student
+    ->     GROUP BY student_name;
+
+In MySQL, you can get the concatenated values of expression combinations. To eliminate duplicate values, use the DISTINCT clause. To sort values in the result, use the ORDER BY clause. To sort in reverse order, add the DESC (descending) keyword to the name of the column you are sorting by in the ORDER BY clause. The default is ascending order; this may be specified explicitly using the ASC keyword. The default separator between values in a group is comma (“,”). To specify a separator explicitly, use SEPARATOR followed by the string value that should be inserted between group values. To eliminate the separator altogether, specify SEPARATOR ''.
+
+The result is truncated to the maximum length that is given by the group_concat_max_len system variable, which has a default value of 1024. The value can be set higher, although the effective maximum length of the return value is constrained by the value of max_allowed_packet. The syntax to change the value of group_concat_max_len at runtime is as follows, where val is an unsigned integer:
+
+SET [GLOBAL | SESSION] group_concat_max_len = val;
+
+The return value is a nonbinary or binary string, depending on whether the arguments are nonbinary or binary strings. The result type is TEXT or BLOB unless group_concat_max_len is less than or equal to 512, in which case the result type is VARCHAR or VARBINARY. (Prior to MySQL 5.0.19, GROUP_CONCAT() returned TEXT or BLOB group_concat_max_len greater than 512 only if the query included an ORDER BY clause.)
+
+See also CONCAT() and CONCAT_WS(): Section 11.5, “String Functions”.
+
+∞MAX([DISTINCT] expr)
+
+Returns the maximum value of expr. MAX() may take a string argument; in such cases, it returns the maximum string value. See Section 7.5.3, “How MySQL Uses Indexes”. The DISTINCT keyword can be used to find the maximum of the distinct values of expr, however, this produces the same result as omitting DISTINCT.
+
+MAX() returns NULL if there were no matching rows.
+
+mysql> SELECT student_name, MIN(test_score), MAX(test_score)
+    ->        FROM student
+    ->        GROUP BY student_name;
+
+For MAX(), MySQL currently compares ENUM and SET columns by their string value rather than by the string's relative position in the set. This differs from how ORDER BY compares them. This is expected to be rectified in a future MySQL release.
+
+∞MIN([DISTINCT] expr)
+
+Returns the minimum value of expr. MIN() may take a string argument; in such cases, it returns the minimum string value. See Section 7.5.3, “How MySQL Uses Indexes”. The DISTINCT keyword can be used to find the minimum of the distinct values of expr, however, this produces the same result as omitting DISTINCT.
+
+MIN() returns NULL if there were no matching rows.
+
+mysql> SELECT student_name, MIN(test_score), MAX(test_score)
+    ->        FROM student
+    ->        GROUP BY student_name;
+
+For MIN(), MySQL currently compares ENUM and SET columns by their string value rather than by the string's relative position in the set. This differs from how ORDER BY compares them. This is expected to be rectified in a future MySQL release.
+
+∞STD(expr)
+
+Returns the population standard deviation of expr. This is an extension to standard SQL. As of MySQL 5.0.3, the standard SQL function STDDEV_POP() can be used instead.
+
+This function returns NULL if there were no matching rows.
+
+∞STDDEV(expr)
+
+Returns the population standard deviation of expr. This function is provided for compatibility with Oracle. As of MySQL 5.0.3, the standard SQL function STDDEV_POP() can be used instead.
+
+This function returns NULL if there were no matching rows.
+
+∞STDDEV_POP(expr)
+
+Returns the population standard deviation of expr (the square root of VAR_POP()). This function was added in MySQL 5.0.3. Before 5.0.3, you can use STD() or STDDEV(), which are equivalent but not standard SQL.
+
+STDDEV_POP() returns NULL if there were no matching rows.
+
+∞STDDEV_SAMP(expr)
+
+Returns the sample standard deviation of expr (the square root of VAR_SAMP(). This function was added in MySQL 5.0.3.
+
+STDDEV_SAMP() returns NULL if there were no matching rows.
+
+∞SUM([DISTINCT] expr)
+
+Returns the sum of expr. If the return set has no rows, SUM() returns NULL. The DISTINCT keyword can be used to sum only the distinct values of expr.
+
+SUM() returns NULL if there were no matching rows.
+
+∞VAR_POP(expr)
+
+Returns the population standard variance of expr. It considers rows as the whole population, not as a sample, so it has the number of rows as the denominator. This function was added in MySQL 5.0.3. Before 5.0.3, you can use VARIANCE(), which is equivalent but is not standard SQL.
+
+VAR_POP() returns NULL if there were no matching rows.
+
+∞VAR_SAMP(expr)
+
+Returns the sample variance of expr. That is, the denominator is the number of rows minus one. This function was added in MySQL 5.0.3.
+
+VAR_SAMP() returns NULL if there were no matching rows.
+
+∞VARIANCE(expr)
+
+Returns the population standard variance of expr. This is an extension to standard SQL. As of MySQL 5.0.3, the standard SQL function VAR_POP() can be used instead.
+
+VARIANCE() returns NULL if there were no matching rows.

@@ -1,0 +1,46 @@
+BINARY
+
+The BINARY operator casts the string following it to a binary string. This is an easy way to force a column comparison to be done byte by byte rather than character by character. This causes the comparison to be case sensitive even if the column is not defined as BINARY or BLOB. BINARY also causes trailing spaces to be significant.
+
+mysql> SELECT 'a' = 'A';
+        -> 1
+mysql> SELECT BINARY 'a' = 'A';
+        -> 0
+mysql> SELECT 'a' = 'a ';
+        -> 1
+mysql> SELECT BINARY 'a' = 'a ';
+        -> 0
+
+In a comparison, BINARY affects the entire operation; it can be given before either operand with the same result.
+
+BINARY str is shorthand for CAST(str AS BINARY).
+
+Note that in some contexts, if you cast an indexed column to BINARY, MySQL is not able to use the index efficiently.
+
+∞CAST(expr AS type)
+
+The CAST() function takes a value of one type and produce a value of another type, similar to CONVERT(). See the description of CONVERT() for more information.
+
+∞CONVERT(expr,type)
+
+CONVERT(expr,type), CONVERT(expr USING transcoding_name)
+
+The CONVERT() and CAST() functions take a value of one type and produce a value of another type.
+
+The type can be one of the following values:
+
+    BINARY[(N)]
+
+    CHAR[(N)]
+
+    DATE
+
+    DATETIME
+
+    DECIMAL[(M[,D])]
+
+    SIGNED [INTEGER]
+
+    TIME
+
+    UNSIGNED [INTEGER]
