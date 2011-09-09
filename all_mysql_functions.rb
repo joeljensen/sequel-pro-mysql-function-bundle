@@ -52,7 +52,7 @@ end
 </dict>
 </plist>
 PLIST
-
+   
 
 files.each do |title|
 	value = File.open(title).read()
@@ -81,3 +81,7 @@ files.each do |title|
     end
   end 
 end
+
+
+# Comment this out if you want to see all 200 bundles
+`mv *.spBundle "/Users/$USER/Library/Application Support/Sequel Pro/Bundles"`
